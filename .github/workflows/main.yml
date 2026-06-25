@@ -89,6 +89,12 @@ jobs:
             docker stop microservicio-transportes || true
             docker rm microservicio-transportes || true
             
+            # También detiene cualquier otro contenedor ocupando el puerto 8080
+            for container in $(docker ps -q --filter "publish=8080"); do
+              docker stop $container || true
+              docker rm $container || true
+            done
+            
             # ARRANQUE DE PRODUCCIÓN OPTIMIZADO (Ajustado a tus nuevas variables de application.properties)
             docker run -d --name microservicio-transportes -p 8080:8080 \
               -v ~/oracle_wallet:/app/wallet \
