@@ -103,5 +103,6 @@ jobs:
               -e AWS_REGION="us-east-1" \
               -e AWS_S3_BUCKET="mibucketduoc" \
               -e RUTA_EFS="/app/efs_storage" \
+              -e AZURE_ISSUER_URI="${{ secrets.AZURE_ISSUER_URI }}" \
               ${{ secrets.DOCKERHUB_USERNAME }}/microservicio-transportes:latest
           EOF
