@@ -38,8 +38,8 @@ public class SecurityConfig {
                 
                 // REGLA 1: Para descargar guías.
                 // Si alguien intenta entrar a la ruta "/api/transportes/guias/descargar", 
-                // le exigimos que en su token tenga el permiso (rol) de "DESCARGA" o el de "ADMIN".
-                .requestMatchers(HttpMethod.GET, "/api/transportes/guias/descargar").hasAnyAuthority("ROLE_DESCARGA", "ROLE_ADMIN")
+                // le exigimos que en su token tenga el permiso (rol) de "DESCARGA" estrictamente.
+                .requestMatchers(HttpMethod.GET, "/api/transportes/guias/descargar").hasAuthority("ROLE_DESCARGA")
                 
                 // REGLA 2: Para todo lo demás (crear, buscar, eliminar, etc.).
                 // Si intentan usar cualquier otra función, obligatoriamente deben ser "ADMIN".
