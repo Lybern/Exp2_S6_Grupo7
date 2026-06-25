@@ -72,9 +72,9 @@ public class SecurityConfig {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
         
         // Azure B2C normalmente guarda los roles en un campo que empieza con "extension_".
-        // Le decimos a nuestro traductor que busque los roles exactamente en el campo "extension_Role".
+        // Le decimos a nuestro traductor que busque los roles exactamente en el campo "extension_consultaRole".
         // (Si en Azure le pusiste otro nombre al atributo de usuario, debes cambiarlo aquí).
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("extension_Role");
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("extension_consultaRole");
         
         // Spring Boot está acostumbrado a que todos los roles empiecen con la palabra "ROLE_".
         // Así que le decimos al traductor que le pegue ese texto al principio (ej: DESCARGA pasará a ser ROLE_DESCARGA).
