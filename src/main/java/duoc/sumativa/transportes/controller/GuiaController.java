@@ -126,14 +126,8 @@ public class GuiaController {
             @RequestParam("transportista") String transportista,
             @RequestParam("fecha") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         
-        // Convertimos la fecha (2026-06-02) en el inicio del día (2026-06-02T00:00:00)
-        java.time.LocalDateTime inicioDia = fecha.atStartOfDay();
-        
-        // Convertimos la fecha en el último instante del día (2026-06-02T23:59:59.999999)
-        java.time.LocalDateTime finDia = fecha.atTime(java.time.LocalTime.MAX);
-        
-        // Ejecutamos la búsqueda usando el nuevo método del repositorio
-        List<GuiaDespacho> resultados = guiaRepository.findByTransportistaAndFechaEmisionBetween(transportista, inicioDia, finDia);
+        // Ejecutamos la búsqueda usando el nuevo método del repositorio (usando LocalDate directamente)
+        List<GuiaDespacho> resultados = guiaRepository.findByTransportistaAndFechaEmision(transportista, fecha);
         return ResponseEntity.ok(resultados);
     }
 
