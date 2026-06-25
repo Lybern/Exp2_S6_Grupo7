@@ -87,7 +87,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        String jwkSetUri = "https://duocazurecloudn.b2clogin.com/tfp/duocazurecloudn.onmicrosoft.com/B2C_1_DuocDemoAzure_registro_login/v2.0/.well-known/openid-configuration";
+        String jwkSetUri = "https://duocazurecloudn.b2clogin.com/tfp/76b75f28-e0f9-4305-9b31-f6f69d880cfe/b2c_1_duocdemoazure_registro_login/v2.0/.well-known/openid-configuration";
 
         return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
