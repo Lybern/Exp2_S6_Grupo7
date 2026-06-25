@@ -38,6 +38,8 @@ Esta arquitectura da cumplimiento perfecto a dicho párrafo de la siguiente form
   - **REGLA 3:** Cualquier otra ruta no especificada requiere autenticación básica.
 - **Traductor de Claims (JwtAuthenticationConverter):** Se implementó un método que lee el token de Azure, busca un atributo personalizado llamado `extension_Role` y le antepone el prefijo `ROLE_` para que Spring Boot lo reconozca nativamente.
 - Se llenó el archivo con **comentarios analógicos ("guardia", "carnet", "traductor")** para facilitar su defensa técnica.
+- **Configuración de JwtDecoder:** Se implementó el bean `JwtDecoder` (utilizando `NimbusJwtDecoder`) y se configuró manualmente su `jwkSetUri` apuntando a la URL exacta con el ID del tenant (`76b75f28-e0f9-4305-9b31-f6f69d880cfe`) para asegurar la descarga correcta de las llaves.
+- **Correcciones aplicadas:** Se solucionó un error de sintaxis y se agregaron las importaciones correspondientes para el correcto funcionamiento de Spring Security y Azure B2C.
 
 ---
 
@@ -45,9 +47,9 @@ Esta arquitectura da cumplimiento perfecto a dicho párrafo de la siguiente form
 **Objetivo:** Conectar el entorno de seguridad de Spring Boot con el Proveedor de Identidad en la Nube (Azure AD B2C).
 
 **Cambios realizados:**
-- Se agregó la propiedad `spring.security.oauth2.resourceserver.jwt.issuer-uri=${AZURE_ISSUER_URI}`.
-- Esta propiedad indica a Spring dónde descargar las claves públicas de Azure para validar matemáticamente la firma de los tokens y asegurar que no estén falsificados.
-- Se inyectó como variable de entorno (`${AZURE_ISSUER_URI}`) para cumplir con buenas prácticas de seguridad y no quemar credenciales en el código.
+- Se actualizó la propiedad `spring.security.oauth2.resourceserver.jwt.issuer-uri` reemplazando la variable de entorno por el valor exacto del emisor de Azure B2C: `https://duocazurecloudn.b2clogin.com/tfp/76b75f28-e0f9-4305-9b31-f6f69d880cfe/b2c_1_duocdemoazure_registro_login/v2.0/`.
+- Esta propiedad indica a Spring dónde descargar las claves públicas de Azure para validar matemáticamente la firma de los tokens y asegurar que la fuente del token coincida exactamente con la aplicación en Azure.
+- Se configuró la URL usando el identificador único del Tenant (Tenant ID) en lugar del nombre de dominio, previniendo así errores de validación de Claims del JWT ("iss" claim mismatch).
 - Se añadieron comentarios detallados y explicativos en todas las secciones (Base de datos, S3, Multipart).
 
 ---
