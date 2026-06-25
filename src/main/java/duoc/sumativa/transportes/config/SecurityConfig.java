@@ -9,6 +9,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+
 
 @Configuration
 @EnableWebSecurity
@@ -58,6 +61,7 @@ public class SecurityConfig {
         return http.build();
     }
 
+ 
     /**
      * Este componente es como un "traductor".
      * Cuando llega el Token desde Azure, Azure guarda los roles con un nombre especial.
@@ -79,5 +83,12 @@ public class SecurityConfig {
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
         return jwtAuthenticationConverter;
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        String jwkSetUri = "https://duocazurecloudn.b2clogin.com/tfp/duocazurecloudn.onmicrosoft.com/B2C_1_DuocDemoAzure_registro_login/v2.0/.well-known/openid-configuration";
+
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 }
