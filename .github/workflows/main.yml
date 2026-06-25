@@ -57,7 +57,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
 
       # 9. LLAVE SSH: Configura y resguarda la clave privada (.pem) dentro del runner para poder conectarse a la EC2
       - name: Add SSH key
@@ -99,7 +98,6 @@ jobs:
               -e DB_PASSWORD="${{ secrets.ORACLE_DB_PASSWORD }}" \
               -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
               -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-              -e AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}" \
               -e AWS_REGION="us-east-1" \
               -e AWS_S3_BUCKET="mibucketduoc" \
               -e RUTA_EFS="/app/efs_storage" \

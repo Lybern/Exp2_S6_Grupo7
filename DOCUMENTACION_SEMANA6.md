@@ -4,6 +4,18 @@ Este documento registra todas las modificaciones realizadas en el código fuente
 
 ---
 
+## 0. Cumplimiento Exacto del Requerimiento Principal
+La rúbrica exige textualmente: *"Azure AD B2C: Toda la autenticación del backend springboot y del API Gateway, deben estar integrados con Azure AD. Además, deben crear 2 roles, uno que permita solo usar el endpoint de Descargar guías y el otro que permita el uso del resto de endpoints."*
+
+Esta arquitectura da cumplimiento perfecto a dicho párrafo de la siguiente forma:
+1. **"Toda la autenticación del backend springboot..."**: Logrado implementando el patrón `OAuth2 Resource Server` (vía `spring-boot-starter-oauth2-resource-server`) y configurando estáticamente el `AZURE_ISSUER_URI` de Microsoft Entra ID.
+2. **"...y del API Gateway deben estar integrados con Azure AD"**: Logrado mediante la delegación perimetral utilizando un **JWT Authorizer** en AWS API Gateway, configurado con las mismas credenciales (Issuer y Audience) del inquilino B2C.
+3. **"Además, deben crear 2 roles..."**: Logrado mediante la extracción inteligente de Claims personalizados (vía `JwtAuthenticationConverter`), el cual lee el atributo `extension_Role` inyectado en el token por Azure.
+4. **"...uno que permita solo usar el endpoint de Descargar guías..."**: Logrado explícitamente en la capa de filtros (`SecurityConfig.java`) mediante la regla: `.requestMatchers(HttpMethod.GET, "/api/transportes/guias/descargar").hasAnyAuthority("ROLE_DESCARGA", "ROLE_ADMIN")`.
+5. **"...y el otro que permita el uso del resto de endpoints."**: Logrado aplicando la política comodín posterior: `.requestMatchers("/api/transportes/**").hasAuthority("ROLE_ADMIN")`, blindando todas las operaciones (crear, modificar, buscar, eliminar) tras el rol más alto.
+
+---
+
 ## 1. Archivo Modificado: `pom.xml`
 **Objetivo:** Incorporar las librerías necesarias para interceptar peticiones y validar tokens JWT.
 
@@ -100,3 +112,78 @@ Para dar cumplimiento estricto a los requerimientos de la actividad, absolutamen
 
 > **Nota Técnica:** 
 > La securitización masiva se logró mediante el comodín de ruta `.requestMatchers("/api/transportes/**").hasAuthority("ROLE_ADMIN")`, el cual intercepta y protege por defecto cualquier operación de creación, modificación, búsqueda o eliminación, garantizando que no existan fugas de seguridad (endpoints expuestos accidentalmente). La única excepción explícita es el endpoint de descarga, el cual otorga acceso al rol menos privilegiado (`ROLE_DESCARGA`).
+
+---
+
+## 9. Guía de Ejecución y Pruebas (Checklist Final)
+Para desplegar y validar toda esta arquitectura en la nube, se debe seguir el siguiente flujo operativo:
+
+### Fase 1: Despliegue (GitHub Actions)
+1. Hacer un `git push` de los cambios hacia la rama principal.
+2. Asegurarse de que en los **Secrets** del repositorio de GitHub exista la variable `AZURE_ISSUER_URI` con el valor exacto del Issuer obtenido en Azure B2C (ej. `https://<tenant>.b2clogin.com/...`).
+3. Esperar a que el pipeline de GitHub Actions finalice y despliegue la nueva imagen de Docker en la máquina EC2.
+
+### Fase 2: Configuración de Roles en Azure AD B2C
+1. **Atributo Personalizado:** En el portal de Azure, dentro de Azure AD B2C, ir a *Atributos de usuario* y crear un nuevo atributo llamado `Role` (tipo String).
+2. **Inyección en el Token:** Ir a *Flujos de usuario*, seleccionar el flujo activo, entrar a *Notificaciones de la aplicación* (Application claims) y marcar el atributo `Role`.
+3. **Asignación a Usuarios:** En la sección de *Usuarios*, crear o editar cuentas de prueba asignándoles el valor exacto `ADMIN` o `DESCARGA` en su campo de perfil correspondiente.
+
+### Fase 3: Pruebas de Seguridad en Postman (IP EC2)
+Para demostrar la efectividad del Resource Server (Spring Security) independientemente del API Gateway:
+1. Obtener un token de Azure iniciando sesión con el usuario de rol **`DESCARGA`**.
+2. Realizar una petición `GET` a `http://<IP_EC2>:8080/api/transportes/guias/descargar` inyectando el token. El resultado debe ser exitoso (`200 OK`).
+3. Con el mismo token, intentar un `POST` a `/api/transportes/guias/subir`. El sistema debe rechazar la petición con un contundente **`403 Forbidden`**.
+4. Repetir la prueba con el usuario **`ADMIN`** para corroborar que este sí posee el acceso total.
+
+### Fase 4: Integración con AWS API Gateway
+Para cumplir el ciclo completo de la arquitectura perimetral:
+1. Ir a AWS API Gateway y editar la API de la semana anterior.
+2. Registrar las nuevas rutas de `/transportes` (`/subir`, `/descargar`, etc.) apuntándolas hacia la IP de la instancia EC2.
+3. Asegurarse de que el **JWT Authorizer** esté activo en estas rutas.
+4. Desplegar la API y realizar la validación final demostrando que el tráfico fluye desde el Gateway, es validado en su rol por la EC2, y finalmente el documento es procesado y almacenado en Amazon S3.
+
+---
+
+## Anexo A: Guía de Reposición de Secretos para GitHub Actions
+Debido a que los secretos no se pueden heredar entre repositorios, es obligatorio configurar las siguientes variables de entorno en **Settings > Secrets and variables > Actions** del nuevo repositorio para que el despliegue automático funcione. Aquí se detalla exactamente de dónde obtener cada valor:
+
+### 1. Credenciales de AWS (Cuenta Estándar / IAM)
+* **`AWS_ACCESS_KEY_ID`** y **`AWS_SECRET_ACCESS_KEY`**: Al utilizar una cuenta de AWS propia (no Academy), estas llaves se obtienen creando un usuario en el servicio **IAM (Identity and Access Management)** de AWS y generando unas "Claves de acceso" (Access Keys). A diferencia de Academy, estas claves no cambian a menos que tú las elimines, por lo que solo debes configurarlas una vez.
+* **`AWS_SESSION_TOKEN`**: Si creaste un usuario IAM estándar, generalmente **no necesitas** este token. Puedes dejar el secreto vacío en GitHub o borrar esa variable si no usas roles temporales (STS).
+
+### 2. Credenciales de Servidor (EC2)
+* **`EC2_HOST`**: Es la IP Elástica (o IP Pública IPv4) de tu máquina virtual. Se obtiene en la consola de AWS > EC2 > Instancias.
+* **`EC2_SSH_KEY`**: Es el contenido de texto de tu llave `.pem` (la que descargaste al crear la máquina). Ábrela con un bloc de notas y copia todo, asegurándote de incluir las líneas `-----BEGIN...` y `-----END...`.
+* **`USER_SERVER`**: Es el usuario por defecto de tu máquina virtual. Si instalaste Ubuntu, el valor es `ubuntu`. Si usaste Amazon Linux, el valor es `ec2-user`.
+
+### 3. Credenciales de Base de Datos (Oracle Cloud)
+* **`ORACLE_DB_USER`**: El usuario administrador de tu base de datos (generalmente es `ADMIN`).
+* **`ORACLE_DB_PASSWORD`**: La contraseña que definiste al crear la base de datos en Oracle Cloud.
+* **`ORACLE_WALLET_BASE64`**: En Oracle Cloud, descarga tu Billetera (Wallet.zip). Luego, debes convertir ese archivo `.zip` a formato de texto Base64 usando una herramienta de terminal o web, y pegar esa cadena de texto gigante aquí.
+
+### 4. Credenciales de Contenedores (Docker Hub)
+* **`DOCKERHUB_USERNAME`**: Tu nombre de usuario público en Docker Hub.
+* **`DOCKERHUB_TOKEN`**: En Docker Hub, ve a *Account Settings > Security > New Access Token*. (También puede funcionar tu contraseña, pero el Token es la mejor práctica).
+
+### 5. Credenciales de Seguridad (Azure AD B2C)
+* **`AZURE_ISSUER_URI`**: *(Reemplaza al antiguo AZURE_CLIENT_SECRET)*. Entra al portal de Azure B2C, ejecuta tu Flujo de Usuario y serás redirigido a `jwt.ms`. En la pestaña "Decoded", busca el valor exacto del campo `iss`. Pégalo completo.
+
+---
+
+## Anexo B: Buenas Prácticas de Seguridad y Despliegue
+Durante la Semana 6, se han implementado las siguientes mejoras de seguridad y optimización del flujo DevOps:
+
+### 1. Refactorización para Credenciales IAM (AWS S3)
+Debido al uso de una cuenta propia de AWS (y no un laboratorio temporal como AWS Academy), las credenciales de seguridad (`AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`) son **permanentes**.
+Por consiguiente, el uso de la variable `AWS_SESSION_TOKEN` fue completamente purgado de:
+- El pipeline de despliegue (`main.yml`).
+- El archivo de configuración de Spring (`application.properties`).
+- La clase inyectora de Java (`S3Config.java`), pasando a utilizar de forma explícita la clase `AwsBasicCredentials`.
+Esta refactorización es obligatoria, ya que enviar un Token vacío a los servidores de Amazon S3 resulta en peticiones rechazadas (Error 401/403).
+
+### 2. Protección Local de Secretos (`.gitignore`)
+Como mecanismo preventivo para evitar fugas de información (*Secret Leakage*), todo archivo utilizado para almacenar temporalmente contraseñas (como `Secretos.txt`) ha sido inyectado formalmente en el archivo `.gitignore`. 
+El archivo `.gitignore` actúa como una "lista negra" forzada sobre Git, asegurando que:
+1. El archivo sea invisible para los comandos de rastreo (ej. `git add .`).
+2. Jamás se suba al repositorio de GitHub por accidente.
+3. Las contraseñas se mantengan puramente en el entorno de almacenamiento local del desarrollador.
